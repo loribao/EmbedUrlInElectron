@@ -1,39 +1,60 @@
-const { app, BrowserWindow, Menu ,BrowserView,Tray } = require('electron')
-const path = require('path');
-
+const { app, BrowserWindow, Menu, BrowserView, Tray } = require('electron')
+const { windowOptions, trayOptions, urlPath, browserViewOptions } = require('./config'); //Importando as configurações para janelas
+const preload = require('./preload.js');
 //#variaveis 
-const iconPath = path.join(__dirname, 'icon.png');
-const backgroundColor = "#212529";
 let tray = null
-
 //funções
+/**
+ * Função para criar a Janela principal
+ * Importa as configurações do arquivo config.js
+ * Faz uso de BrowserView 
+ * https://www.electronjs.org/docs/api/browser-window
+ * Faz uso da regra de negicio antes da renderização da Janela com a função importada do arquivo preload.js
+ */
 
-const startWindow=()=>{  
-  const mainWindow = new BrowserWindow({ backgroundColor: backgroundColor,skipTaskbar:false,icon:iconPath,title:"csu teste embed web app",autoHideMenuBar:true});
-  const view = new BrowserView();
-  mainWindow.setBrowserView(view);      
+const createStartWindow = () => {
+  preload();
+  const mainWindow = new BrowserWindow(windowOptions);
+  const view = new BrowserView(); //instanciando a view que vai renderizar o site.
+  mainWindow.setBrowserView(view);
   const contentBounds = mainWindow.getContentBounds();
-  view.setBounds({ x: 0, y: 0, width: contentBounds.width, height: contentBounds.height });
-  view.setAutoResize({ width: true, height: true });
-  view.setBackgroundColor(backgroundColor);
-  view.webContents.loadURL("https://demos.creative-tim.com/material-dashboard-pro-react/#/admin/dashboard")  
+
+  view.setBounds(browserViewOptions.bounds(mainWindow.getContentBounds()));
+  view.setAutoResize(browserViewOptions.autoResize);
+  view.setBackgroundColor(browserViewOptions.backgroundColor);
+  view.webContents.loadURL(urlPath);
 }
-const closeApp =()=>{
-  if(process.platform !== 'darwin'){
+/**
+ * Disposed da aplicação.
+ */
+const closeApp = () => {
+  
+
+  if (process.platform !== 'darwin') {
     app.quit();
   }
 }
-
-const createMenuTray=()=>{
-  tray = new Tray(iconPath)
+/**
+ * Cria o menu na bandeja do sistema operacional
+ * importa as configurações do arquivo Config.js, para Titulo e icone 
+ * 
+ */
+const createMenuTray = () => {
+  tray = new Tray(trayOptions.trayIconPath);
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Exit', type: 'normal',click: closeApp },    
+    { label: 'Exit', type: 'normal', click: closeApp },
+    {
+      label: 'Open', type: 'normal', click: () => {
+        createStartWindow();
+      }
+    },
   ])
-  tray.setToolTip('Titulo menu Tray')
+  tray.setToolTip(trayOptions.title)
   tray.setContextMenu(contextMenu)
+  tray.on('double-click',createStartWindow)
 }
 
 //eventos 
-app.on('ready', startWindow);
-app.on('window-all-closed',closeApp);
+//app.on('ready', createStartWindow);
+app.on('window-all-closed', closeApp);
 app.whenReady().then(createMenuTray);
